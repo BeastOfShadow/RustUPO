@@ -4,3 +4,4 @@ pub mod player;
 pub mod game;
 pub mod table;
 pub mod vending_machine;
+pub mod person;
