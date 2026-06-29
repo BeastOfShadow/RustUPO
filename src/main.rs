@@ -33,64 +33,106 @@ fn main() {
 //     // print!("{:?}{}/{}", rat.sign, rat.num, rat.den);
 // }
 
-use esercizi::game::Configuration;
-use std::io;
+use std::{
+    sync::{Arc, Mutex, mpsc},
+    thread, time::Duration,
+};
+
+use esercizi::auction::{AuctionOutcome, AuctioneerMessage, PartecipantMessage, Product, auctioneer_routine, partecipant_routine};
+
+// fn main() {
+//     // 1. Setup dei parametri (in futuro potresti chiederli all'utente qui)
+//     let n_celle = 10;
+//     let n_oggetti = 5;
+//     let valore_cibo = 5;
+//     let valore_veleno = -10;
+//     let forza_iniziale = 15;
+//     let mosse_massime = 20;
+
+//     // 2. Inizializzazione del gioco
+//     let mut game = Configuration::new(n_celle, n_oggetti, valore_cibo, valore_veleno, forza_iniziale);
+//     let mut mosse_fatte = 0;
+
+//     // Schermata di avvio
+//     print!("{}[2J{}[1;1H", 27 as char, 27 as char); // Pulisce il terminale
+//     println!("=== GAME START ===");
+//     println!("Press ENETER to start...");
+//     let mut start = String::new();
+//     io::stdin().read_line(&mut start).unwrap();
+
+//     // 3. IL GAME LOOP
+//     // Il gioco continua finché il giocatore è vivo (forza > 0) E non ha finito le mosse
+//     while game.player.strength > 0 && mosse_fatte < mosse_massime {
+//         // Pulisce lo schermo a ogni turno per un effetto "animazione"
+//         print!("{}[2J{}[1;1H", 27 as char, 27 as char);
+
+//         // Stampa l'interfaccia utente (UI)
+//         println!("ROUND: {}/{}", mosse_fatte + 1, mosse_massime);
+//         println!("PLAYER STRENGTH: {}", game.player.strength);
+//         println!("----------------------");
+
+//         // Stampa la mappa (richiede che tu implementi Display per Configuration)
+//         println!("{}", game);
+//         println!("----------------------");
+
+//         // Aspetta l'input dell'utente
+//         println!("Press ENETER for next round...");
+//         let mut aspetta_invio = String::new();
+//         io::stdin().read_line(&mut aspetta_invio).expect("Error while reading");
+
+//         // Fai calcolare la logica del turno a Configuration
+//         game.play_turn();
+
+//         mosse_fatte += 1;
+//     }
+
+//     // 4. SCHERMATA FINALE
+//     print!("{}[2J{}[1;1H", 27 as char, 27 as char);
+//     println!("{}", game);
+//     println!("=== GAME ENDED ===");
+
+//     if game.player.strength <= 0 {
+//         println!("💀 YOU LOST! Poison killed you.");
+//     } else {
+//         println!("🏆 YOU WON! You survived for all {} rounds!", mosse_massime);
+//         println!("Final strength: {}", game.player.strength);
+//     }
+// }
 
 fn main() {
-    // 1. Setup dei parametri (in futuro potresti chiederli all'utente qui)
-    let n_celle = 10;
-    let n_oggetti = 5;
-    let valore_cibo = 5;
-    let valore_veleno = -10;
-    let forza_iniziale = 15;
-    let mosse_massime = 20;
+    let product = Product {
+        start_price: 10,
+        reserve_price: 15,
+        description: "Bicchiere".to_string(),
+    };
 
-    // 2. Inizializzazione del gioco
-    let mut game = Configuration::new(n_celle, n_oggetti, valore_cibo, valore_veleno, forza_iniziale);
-    let mut mosse_fatte = 0;
+    let outcome = Arc::new(Mutex::new(AuctionOutcome {
+        sold_product: product.description.clone(),
+        sold_price_product: None,
+        player_id: None,
+    }));
 
-    // Schermata di avvio
-    print!("{}[2J{}[1;1H", 27 as char, 27 as char); // Pulisce il terminale
-    println!("=== GAME START ===");
-    println!("Press ENETER to start...");
-    let mut start = String::new();
-    io::stdin().read_line(&mut start).unwrap();
+    // Listen all partecipants
+    let (to_auctioneer, from_partecipant) = mpsc::channel::<PartecipantMessage>();
 
-    // 3. IL GAME LOOP
-    // Il gioco continua finché il giocatore è vivo (forza > 0) E non ha finito le mosse
-    while game.player.strength > 0 && mosse_fatte < mosse_massime {
-        // Pulisce lo schermo a ogni turno per un effetto "animazione"
-        print!("{}[2J{}[1;1H", 27 as char, 27 as char);
+    let n = 5;
+    let mut senders_to_partecipants: Vec<mpsc::Sender<AuctioneerMessage>> = Vec::new();
 
-        // Stampa l'interfaccia utente (UI)
-        println!("ROUND: {}/{}", mosse_fatte + 1, mosse_massime);
-        println!("PLAYER STRENGTH: {}", game.player.strength);
-        println!("----------------------");
-        
-        // Stampa la mappa (richiede che tu implementi Display per Configuration)
-        println!("{}", game); 
-        println!("----------------------");
+    for id in 0..n {
+        // Auctioneer send messagge to every partecipants
+        let (to_partecipant, from_auctioneer) = mpsc::channel();
+        senders_to_partecipants.push(to_partecipant);
 
-        // Aspetta l'input dell'utente
-        println!("Press ENETER for next round...");
-        let mut aspetta_invio = String::new();
-        io::stdin().read_line(&mut aspetta_invio).expect("Error while reading");
+        let to_auctioneer_clone = to_auctioneer.clone();
 
-        // Fai calcolare la logica del turno a Configuration
-        game.play_turn();
-        
-        mosse_fatte += 1;
+        thread::spawn(move || {
+            partecipant_routine(id, to_auctioneer_clone, from_auctioneer);
+        });
     }
 
-    // 4. SCHERMATA FINALE
-    print!("{}[2J{}[1;1H", 27 as char, 27 as char);
-    println!("{}", game);
-    println!("=== GAME ENDED ===");
+    drop(to_auctioneer);
+    
+    auctioneer_routine(n, product, from_partecipant, senders_to_partecipants, outcome);
 
-    if game.player.strength <= 0 {
-        println!("💀 YOU LOST! Poison killed you.");
-    } else {
-        println!("🏆 YOU WON! You survived for all {} rounds!", mosse_massime);
-        println!("Final strength: {}", game.player.strength);
-    }
+    println!("Main: Programma terminato.");
 }
