@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn test_transpose_varying_lengths() {
         let v = vec!["a".to_string(), "bc".to_string(), "def".to_string()];
-        // lunghezza minima = 1 → solo prima colonna
+        // minimum length = 1 → only the first column
         let res = transpose(&v);
         let expected = vec!["abd".to_string()];
         assert_eq!(res, expected);
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn test_transpose_with_empty_strings() {
         let v = vec!["".to_string(), "abc".to_string(), "de".to_string()];
-        // lunghezza minima = 0 → nessuna colonna
+        // minimum length = 0 → no columns
         let res = transpose(&v);
         let expected: Vec<String> = vec![];
         assert_eq!(res, expected);

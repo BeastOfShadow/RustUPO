@@ -99,21 +99,21 @@ pub fn auctioneer_routine(
     senders_to_partecipants: Vec<mpsc::Sender<AuctioneerMessage>>,
     outcome: Arc<Mutex<AuctionOutcome>>,
 ) {
-    println!("Banditore: in attesa di {} partecipanti...", n);
+    println!("Auctioneer: waiting for {} participants...", n);
 
     for _ in 0..n {
         match from_partecipant.recv() {
             Ok(PartecipantMessage::Ready(id)) => {
-                println!("Banditore: partecipante {} pronto!", id);
+                println!("Auctioneer: participant {} ready!", id);
             }
             _ => {
-                println!("L'asta non può partire per cause di forza maggiore.");
+                println!("The auction cannot start due to unforeseen circumstances.");
                 break;
             }
         }
     }
 
-    println!("Banditore: tutti pronti! Invio descrizione prodotto...");
+    println!("Auctioneer: everyone ready! Sending product description...");
 
     for sender in &senders_to_partecipants {
         sender
@@ -137,7 +137,7 @@ pub fn auctioneer_routine(
                         current_winner = Some(partecipant_id);
 
                         println!(
-                            "Banditore: Il Player {} offre {}!",
+                            "Auctioneer: Player {} bids {}!",
                             partecipant_id, actual_price
                         );
 
@@ -154,14 +154,17 @@ pub fn auctioneer_routine(
         }
     }
 
-    println!("Banditore: Asta conclusa.");
+    println!("Auctioneer: Auction concluded.");
 
-    let final_winner = if actual_price >= product.reserve_price {
-        println!("Player {} is the winner!", current_winner.unwrap());
-        current_winner
-    } else {
-        println!("There is no winner..");
-        None
+    let final_winner = match current_winner {
+        Some(winner) if actual_price >= product.reserve_price => {
+            println!("Player {} is the winner!", winner);
+            Some(winner)
+        }
+        _ => {
+            println!("There is no winner..");
+            None
+        }
     };
 
     let mut res = outcome.lock().unwrap();

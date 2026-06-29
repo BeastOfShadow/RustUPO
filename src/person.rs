@@ -100,15 +100,15 @@ impl People {
         }
     }
 
-    fn rec_descendants(persona: Rc<RefCell<Person>>, lista: &mut Vec<String>) {
-        for figlio in &persona.borrow().children {
-            let nome_figlio = figlio.borrow().name.clone();
+    fn rec_descendants(person: Rc<RefCell<Person>>, list: &mut Vec<String>) {
+        for child in &person.borrow().children {
+            let child_name = child.borrow().name.clone();
 
-            // Se il nome non è già nel vettore, lo aggiungiamo
-            if !lista.contains(&nome_figlio) {
-                lista.push(nome_figlio);
-                // Chiamata ricorsiva per i figli di questo figlio
-                Self::rec_descendants(figlio.clone(), lista);
+            // If the name is not already in the vector, add it
+            if !list.contains(&child_name) {
+                list.push(child_name);
+                // Recursive call for this child's children
+                Self::rec_descendants(child.clone(), list);
             }
         }
     }
